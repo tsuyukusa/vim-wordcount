@@ -20,15 +20,20 @@ scriptencoding=utf-8
 
 augroup WordCount
   autocmd!
-  autocmd BufWinEnter,InsertLeave,CursorHold,CursorMoved * call WordCount('char')
+  autocmd BufWinEnter,CursorHold,CursorMoved * call WordCount('char',30)
 augroup END
 
 let s:WordCountStr = ''
 let s:WordCountDict = {'word': 2, 'char': 3, 'byte': 4}
 let s:VisualWordCountDict = {'word': 1, 'char': 2, 'byte': 3}
+let s:FileSize = FileSize()
 function! WordCount(...)
   if a:0 == 0
     return s:WordCountStr
+  elseif a:0 == 2 && mode() == 'n'
+      if a:2 < s:FileSize
+          return s:WordCountStr
+      endif
   endif
   " g<c-g>の何番目の要素を読むか
   let cidx = 3
@@ -44,7 +49,7 @@ function! WordCount(...)
   let s:WordCountStr = ''
   let s:saved_status = v:statusmsg
   exec "silent normal! g\<c-g>"
-  if v:statusmsg !~ '^--' 
+  if v:statusmsg !~ '^--'
     let str = ''
     silent! let str = split(v:statusmsg, ';')[cidx]
     let cur = str2nr(matchstr(str,'\s\d\+',0,1))
@@ -55,6 +60,7 @@ function! WordCount(...)
       let cr = &ff == 'dos' ? 2 : 1
       let cur -= cr * (line('.') - 1)
       let end -= cr * line('$')
+      let s:WordCountStr = printf('%d/%d', cur, end)
     elseif a:1 == 'char' && mode() =~ "^v"
       " 選択モード,行選択モードならば，g-<C-g>にある 選択 より改行文字の数を得る
       " 矩形選択ではこの処理はしない
@@ -65,8 +71,8 @@ function! WordCount(...)
       let cr = &ff == 'dos' ? 2 : 1
       let cur -= cr * vcur
       let end -= cr * vend
+      let s:WordCountStr = printf('%d/%d/%d', vcur+1, cur, end)
     endif
-    let s:WordCountStr = printf('%d/%d', cur, end)
   endif
   let v:statusmsg = s:saved_status
   return s:WordCountStr
